@@ -1,0 +1,64 @@
+{
+  "name": "@adonisjs/transmit-client",
+  "version": "0.0.1",
+  "description": "A client for the native Server-Sent-Event module of AdonisJS.",
+  "keywords": [
+    "client",
+    "sse-client",
+    "sse",
+    "server-sent-event",
+    "adonis",
+    "adonisjs",
+    "adonis-framework"
+  ],
+  "license": "MIT",
+  "author": "Romain Lanz <romain.lanz@pm.me>",
+  "type": "module",
+  "source": "src/transmit.ts",
+  "exports": {
+    "require": "./build/transmit.cjs",
+    "default": "./build/transmit.modern.js"
+  },
+  "main": "./build/transmit.js",
+  "module": "./build/transmit.module.js",
+  "unpkg": "./build/transmit.umd.js",
+  "scripts": {
+    "clean": "del-cli build",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint . --ext=.ts",
+    "format": "prettier --write .",
+    "pretest": "npm run lint",
+    "build": "microbundle",
+    "dev": "microbundle watch",
+    "release": "np",
+    "version": "npm run build",
+    "prepublishOnly": "npm run build"
+  },
+  "devDependencies": {
+    "@adonisjs/eslint-config": "^1.1.7",
+    "@adonisjs/prettier-config": "^1.1.7",
+    "del-cli": "^5.0.0",
+    "eslint": "^8.44.0",
+    "microbundle": "^0.15.1",
+    "np": "^8.0.4",
+    "prettier": "^3.0.0",
+    "typescript": "^5.1.6"
+  },
+  "engines": {
+    "node": ">=18.16.0"
+  },
+  "eslintConfig": {
+    "extends": "@adonisjs/eslint-config/package"
+  },
+  "prettier": "@adonisjs/prettier-config",
+  "publishConfig": {
+    "access": "public",
+    "tag": "latest"
+  },
+  "np": {
+    "message": "chore(release): %s",
+    "tag": "latest",
+    "branch": "main",
+    "anyBranch": false
+  }
+}
