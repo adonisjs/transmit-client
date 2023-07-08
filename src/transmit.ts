@@ -1,5 +1,5 @@
 interface TransmitOptions {
-  endpoint: string
+  baseUrl: string
   eventSourceConstructor?: typeof EventSource
   beforeSubscribe?: (request: RequestInit) => void
   beforeUnsubscribe?: (request: RequestInit) => void
@@ -66,6 +66,10 @@ export class Transmit extends EventTarget {
       options.maxReconnectAttempts = 5
     }
 
+    if (typeof options.removeSubscriptionOnZeroListener === 'undefined') {
+      options.removeSubscriptionOnZeroListener = false
+    }
+
     this.#options = options
     this.#connect()
   }
@@ -78,10 +82,10 @@ export class Transmit extends EventTarget {
   #connect() {
     this.#changeStatus(TransmitStatus.Connecting)
 
-    const url = new URL(this.#options.endpoint)
+    const url = new URL(this.#options.baseUrl + '/__transmit/events')
     url.searchParams.append('uid', this.#uid)
 
-    this.#eventSource = new this.#options.eventSourceConstructor(url.toString())
+    this.#eventSource = new this.#options.eventSourceConstructor(url.toString(), { withCredentials: true })
     this.#eventSource.addEventListener('message', this.#onMessage.bind(this))
     this.#eventSource.addEventListener('error', this.#onError.bind(this))
     this.#eventSource.addEventListener('open', () => {
@@ -155,7 +159,7 @@ export class Transmit extends EventTarget {
 
     this.#channelSubscriptionLock.add(channel)
 
-    const request = new Request(`__transmit/subscribe`, {
+    const request = new Request(`/__transmit/subscribe`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -189,7 +193,7 @@ export class Transmit extends EventTarget {
   }
 
   async #unsubscribe(channel: string) {
-    const request = new Request(`__transmit/unsubscribe`, {
+    const request = new Request(`/__transmit/unsubscribe`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
