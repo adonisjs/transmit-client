@@ -124,6 +124,8 @@ export class Transmit extends EventTarget {
       if (this.#options.onReconnectFailed) {
         this.#options.onReconnectFailed()
       }
+
+      return
     }
 
     this.#reconnectAttempts++
@@ -239,5 +241,9 @@ export class Transmit extends EventTarget {
       callback(message)
       unsubscribe()
     })
+  }
+
+  close() {
+    this.#eventSource.close()
   }
 }
