@@ -6,6 +6,9 @@ interface TransmitOptions {
   maxReconnectAttempts?: number
   onReconnectAttempt?: (attempt: number) => void
   onReconnectFailed?: () => void
+  onSubscribeFailed?: (response: Response) => void
+  onSubscription?: (channel: string) => void
+  onUnsubscription?: (channel: string) => void
   removeSubscriptionOnZeroListener?: boolean
 }
 
@@ -151,6 +154,7 @@ export class Transmit extends EventTarget {
     const listeners = this.#listeners.get(channel)
 
     if (typeof listeners !== 'undefined') {
+      this.#options.onSubscription?.(channel)
       listeners.add(callback)
       return
     }
@@ -173,14 +177,13 @@ export class Transmit extends EventTarget {
       body: JSON.stringify({uid: this.#uid, channel}),
     })
 
-    if (this.#options.beforeSubscribe) {
-      this.#options.beforeSubscribe(request)
-    }
+    this.#options.beforeSubscribe?.(request)
 
     const response = await fetch(request);
 
     if (!response.ok) {
-      throw new Error(response.statusText)
+      this.#options.onSubscribeFailed?.(response)
+      return
     }
 
     if (typeof callback !== 'undefined') {
@@ -191,6 +194,8 @@ export class Transmit extends EventTarget {
       } else {
         listeners.add(callback)
       }
+
+      this.#options.onSubscription?.(channel)
 
       if (this.#channelSubscriptionLock.has(channel)) {
         this.#channelSubscriptionLock.delete(channel)
@@ -207,14 +212,12 @@ export class Transmit extends EventTarget {
       body: JSON.stringify({uid: this.#uid, channel}),
     })
 
-    if (this.#options.beforeUnsubscribe) {
-      this.#options.beforeUnsubscribe(request)
-    }
+    this.#options.beforeUnsubscribe?.(request)
 
     const response = await fetch(request);
 
     if (!response.ok) {
-      throw new Error(response.statusText)
+      return
     }
   }
 
@@ -233,6 +236,7 @@ export class Transmit extends EventTarget {
       }
 
       listeners.delete(callback)
+      this.#options.onUnsubscription?.(channel)
 
       if ((unsubscribeOnTheServer ?? this.#options.removeSubscriptionOnZeroListener) && listeners.size === 0) {
         void this.#unsubscribe(channel)
