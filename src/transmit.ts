@@ -55,6 +55,10 @@ export class Transmit extends EventTarget {
    */
   #channelSubscriptionLock: Set<string> = new Set()
 
+  get uid() {
+    return this.#uid
+  }
+
   constructor(options: TransmitOptions) {
     super()
 
