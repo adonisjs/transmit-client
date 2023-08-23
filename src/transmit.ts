@@ -62,6 +62,10 @@ export class Transmit extends EventTarget {
     return this.#uid
   }
 
+  get listOfSubscriptions() {
+    return Array.from(this.#listeners.keys())
+  }
+
   constructor(options: TransmitOptions) {
     super()
 
