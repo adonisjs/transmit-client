@@ -93,7 +93,7 @@ export class Transmit extends EventTarget {
   #connect() {
     this.#changeStatus(TransmitStatus.Connecting)
 
-    const url = new URL(this.#options.baseUrl + '/__transmit/events')
+    const url = new URL(`${this.#options.baseUrl}/__transmit/events`)
     url.searchParams.append('uid', this.#uid)
 
     this.#eventSource = new this.#options.eventSourceConstructor(url.toString(), { withCredentials: true })
@@ -173,7 +173,7 @@ export class Transmit extends EventTarget {
 
     this.#channelSubscriptionLock.add(channel)
 
-    const request = new Request(`/__transmit/subscribe`, {
+    const request = new Request(`${this.#options.baseUrl}/__transmit/subscribe`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -208,7 +208,7 @@ export class Transmit extends EventTarget {
   }
 
   async #unsubscribe(channel: string) {
-    const request = new Request(`/__transmit/unsubscribe`, {
+    const request = new Request(`${this.#options.baseUrl}/__transmit/unsubscribe`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
