@@ -16,6 +16,7 @@
   "type": "module",
   "source": "src/transmit.ts",
   "exports": {
+    "types": "./build/transmit.d.ts",
     "require": "./build/transmit.cjs",
     "default": "./build/transmit.modern.js"
   },
