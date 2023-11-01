@@ -183,27 +183,28 @@ export class Transmit extends EventTarget {
 
     this.#options.beforeSubscribe?.(request)
 
-    const response = await fetch(request);
+    try {
+      const response = await fetch(request)
 
-    if (!response.ok) {
-      this.#options.onSubscribeFailed?.(response)
-      return
-    }
-
-    if (typeof callback !== 'undefined') {
-      const listeners = this.#listeners.get(channel)
-
-      if (typeof listeners === 'undefined') {
-        this.#listeners.set(channel, new Set([callback]))
-      } else {
-        listeners.add(callback)
-      }
-
-      this.#options.onSubscription?.(channel)
-
-      if (this.#channelSubscriptionLock.has(channel)) {
+      if (!response.ok) {
+        this.#options.onSubscribeFailed?.(response)
         this.#channelSubscriptionLock.delete(channel)
+        return
       }
+
+      if (typeof callback !== 'undefined') {
+        const listeners = this.#listeners.get(channel)
+
+        if (typeof listeners === 'undefined') {
+          this.#listeners.set(channel, new Set([callback]))
+        } else {
+          listeners.add(callback)
+        }
+
+        this.#options.onSubscription?.(channel)
+      }
+    } finally {
+      this.#channelSubscriptionLock.delete(channel)
     }
   }
 
