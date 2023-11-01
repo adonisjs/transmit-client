@@ -102,6 +102,10 @@ export class Transmit extends EventTarget {
     this.#eventSource.addEventListener('open', () => {
       this.#changeStatus(TransmitStatus.Connected)
       this.#reconnectAttempts = 0
+
+      for (const channel of this.#listeners.keys()) {
+        void this.#subscribe(channel)
+      }
     })
   }
 
@@ -140,10 +144,6 @@ export class Transmit extends EventTarget {
     }
 
     this.#reconnectAttempts++
-
-    for (const channel of this.#listeners.keys()) {
-      void this.#subscribe(channel)
-    }
   }
 
   async #subscribe(channel: string, callback?: any) {
