@@ -157,7 +157,7 @@ export class Transmit extends EventTarget {
 
     const listeners = this.#listeners.get(channel)
 
-    if (typeof listeners !== 'undefined') {
+    if (typeof listeners !== 'undefined' && typeof callback !== 'undefined') {
       this.#options.onSubscription?.(channel)
       listeners.add(callback)
       return
