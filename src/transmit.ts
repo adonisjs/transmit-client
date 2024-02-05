@@ -20,7 +20,7 @@ export const TransmitStatus = {
   Reconnecting: 'reconnecting',
 } as const
 
-type TTransmitStatus = typeof TransmitStatus[keyof typeof TransmitStatus]
+type TTransmitStatus = (typeof TransmitStatus)[keyof typeof TransmitStatus]
 
 export class Transmit extends EventTarget {
   /**
@@ -31,7 +31,7 @@ export class Transmit extends EventTarget {
   /**
    * Options for this client.
    */
-  #options: TransmitOptions;
+  #options: TransmitOptions
 
   /**
    * Registered listeners.
@@ -46,7 +46,7 @@ export class Transmit extends EventTarget {
   /**
    * EventSource instance.
    */
-  #eventSource!: EventSource;
+  #eventSource!: EventSource
 
   /**
    * Number of reconnect attempts.
@@ -96,7 +96,9 @@ export class Transmit extends EventTarget {
     const url = new URL(`${this.#options.baseUrl}/__transmit/events`)
     url.searchParams.append('uid', this.#uid)
 
-    this.#eventSource = new this.#options.eventSourceConstructor(url.toString(), { withCredentials: true })
+    this.#eventSource = new this.#options.eventSourceConstructor(url.toString(), {
+      withCredentials: true,
+    })
     this.#eventSource.addEventListener('message', this.#onMessage.bind(this))
     this.#eventSource.addEventListener('error', this.#onError.bind(this))
     this.#eventSource.addEventListener('open', () => {
@@ -109,7 +111,7 @@ export class Transmit extends EventTarget {
     })
   }
 
-  #onMessage(event: MessageEvent){
+  #onMessage(event: MessageEvent) {
     const data = JSON.parse(event.data)
     const listeners = this.#listeners.get(data.channel)
 
@@ -133,7 +135,10 @@ export class Transmit extends EventTarget {
       this.#options.onReconnectAttempt(this.#reconnectAttempts + 1)
     }
 
-    if (this.#options.maxReconnectAttempts && this.#reconnectAttempts >= this.#options.maxReconnectAttempts) {
+    if (
+      this.#options.maxReconnectAttempts &&
+      this.#reconnectAttempts >= this.#options.maxReconnectAttempts
+    ) {
       this.#eventSource.close()
 
       if (this.#options.onReconnectFailed) {
@@ -178,7 +183,8 @@ export class Transmit extends EventTarget {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({uid: this.#uid, channel}),
+      body: JSON.stringify({ uid: this.#uid, channel }),
+      credentials: 'include',
     })
 
     this.#options.beforeSubscribe?.(request)
@@ -214,12 +220,13 @@ export class Transmit extends EventTarget {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({uid: this.#uid, channel}),
+      body: JSON.stringify({ uid: this.#uid, channel }),
+      credentials: 'include',
     })
 
     this.#options.beforeUnsubscribe?.(request)
 
-    const response = await fetch(request);
+    const response = await fetch(request)
 
     if (!response.ok) {
       return
@@ -243,7 +250,10 @@ export class Transmit extends EventTarget {
       listeners.delete(callback)
       this.#options.onUnsubscription?.(channel)
 
-      if ((unsubscribeOnTheServer ?? this.#options.removeSubscriptionOnZeroListener) && listeners.size === 0) {
+      if (
+        (unsubscribeOnTheServer ?? this.#options.removeSubscriptionOnZeroListener) &&
+        listeners.size === 0
+      ) {
         void this.#unsubscribe(channel)
       }
     }
