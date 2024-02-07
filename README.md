@@ -27,7 +27,7 @@
 
 <hr />
 
-AdonisJS Transmit Client is a client for the native Server-Sent-Event (SSE) module of AdonisJS. It is built on top of the [EventSource](https://developer.mozilla.org/en-US/docs/Web/API/ntSource) API and provides a simple API to receive events from the server.
+AdonisJS Transmit Client is a client for the native Server-Sent-Event (SSE) module of AdonisJS. It is built on top of the [EventSource](https://developer.mozilla.org/en-US/docs/Web/API/EventSource) API and provides a simple API to receive events from the server.
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
