@@ -124,6 +124,12 @@ export class Transmit extends EventTarget {
     }
   }
 
+  #retrieveXsrfToken() {
+    const match = document.cookie.match(new RegExp('(^|;\\s*)(XSRF-TOKEN)=([^;]*)'))
+
+    return match ? decodeURIComponent(match[3]) : null
+  }
+
   #onError() {
     if (this.#status !== TransmitStatus.Reconnecting) {
       this.#changeStatus(TransmitStatus.Disconnected)
@@ -182,6 +188,7 @@ export class Transmit extends EventTarget {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'X-XSRF-TOKEN': this.#retrieveXsrfToken() ?? '',
       },
       body: JSON.stringify({ uid: this.#uid, channel }),
       credentials: 'include',
@@ -219,6 +226,7 @@ export class Transmit extends EventTarget {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'X-XSRF-TOKEN': this.#retrieveXsrfToken() ?? '',
       },
       body: JSON.stringify({ uid: this.#uid, channel }),
       credentials: 'include',
