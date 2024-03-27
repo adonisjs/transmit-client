@@ -120,7 +120,12 @@ export class Transmit extends EventTarget {
     }
 
     for (const listener of listeners) {
-      listener(data.payload)
+      try {
+        listener(data.payload)
+      } catch (error) {
+        // TODO: Rescue
+        console.log(error)
+      }
     }
   }
 
