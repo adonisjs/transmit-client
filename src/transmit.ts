@@ -166,9 +166,20 @@ export class Transmit extends EventTarget {
   }
 
   async #subscribe(channel: string, callback?: any) {
+    if (this.#channelSubscriptionLock.has(channel)) {
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          resolve(this.#subscribe(channel, callback))
+        }, 100)
+      })
+    }
+
+    this.#channelSubscriptionLock.add(channel)
+
     if (this.#status !== TransmitStatus.Connected) {
       return new Promise((resolve) => {
         setTimeout(() => {
+          this.#channelSubscriptionLock.delete(channel)
           resolve(this.#subscribe(channel, callback))
         }, 100)
       })
@@ -179,18 +190,10 @@ export class Transmit extends EventTarget {
     if (typeof listeners !== 'undefined' && typeof callback !== 'undefined') {
       this.#options.onSubscription?.(channel)
       listeners.add(callback)
+
+      this.#channelSubscriptionLock.delete(channel)
       return
     }
-
-    if (this.#channelSubscriptionLock.has(channel)) {
-      return new Promise((resolve) => {
-        setTimeout(() => {
-          resolve(this.#subscribe(channel, callback))
-        }, 100)
-      })
-    }
-
-    this.#channelSubscriptionLock.add(channel)
 
     const request = new Request(`${this.#options.baseUrl}/__transmit/subscribe`, {
       method: 'POST',
@@ -253,11 +256,17 @@ export class Transmit extends EventTarget {
     this.addEventListener(event, callback)
   }
 
-  listenOn<T = unknown>(channel: string, callback: (message: T) => void) {
+  listenOn<T = unknown>(channel: string, callback: (message: T) => Promise<void> | void) {
     void this.#subscribe(channel, callback)
 
-    return (unsubscribeOnTheServer?: boolean) => {
+    function unsubscribe(this: Transmit, unsubscribeOnTheServer?: boolean) {
       const listeners = this.#listeners.get(channel)
+
+      if (this.#channelSubscriptionLock.has(channel)) {
+        return setTimeout(() => {
+          unsubscribe.call(this, unsubscribeOnTheServer)
+        }, 100)
+      }
 
       if (typeof listeners === 'undefined') {
         return
@@ -273,6 +282,8 @@ export class Transmit extends EventTarget {
         void this.#unsubscribe(channel)
       }
     }
+
+    return unsubscribe.bind(this)
   }
 
   listenOnce<T = unknown>(channel: string, callback: (message: T) => void) {
