@@ -139,8 +139,8 @@ test.group('Client', () => {
 
     cleanup(() => void transmit.close())
 
-    const unsubscribe = await transmit.listenOn('channel', () => {})
-    await unsubscribe()
+    const unsubscribe = transmit.listenOn('channel', () => {})
+    unsubscribe()
 
     await setTimeout(500)
   }).waitForDone()
