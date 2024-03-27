@@ -130,6 +130,9 @@ export class Transmit extends EventTarget {
   }
 
   #retrieveXsrfToken() {
+    //? This is a browser-only feature
+    if (typeof document === 'undefined') return null
+
     const match = document.cookie.match(new RegExp('(^|;\\s*)(XSRF-TOKEN)=([^;]*)'))
 
     return match ? decodeURIComponent(match[3]) : null
