@@ -19,7 +19,11 @@ test.group('Client', () => {
       done()
     }).listen(PORT)
 
-    cleanup(() => void server.close())
+    cleanup(() => {
+      server.closeAllConnections()
+      server.closeIdleConnections()
+      server.close()
+    })
 
     const transmit = new Transmit({
       baseUrl: `http://localhost:${PORT}`,
@@ -48,7 +52,11 @@ test.group('Client', () => {
       done()
     }).listen(PORT)
 
-    cleanup(() => void server.close())
+    cleanup(() => {
+      server.closeAllConnections()
+      server.closeIdleConnections()
+      server.close()
+    })
 
     const transmit = new Transmit({
       baseUrl: `http://localhost:${PORT}`,
@@ -85,7 +93,11 @@ test.group('Client', () => {
       assert.fail('Should not reach here')
     }).listen(PORT)
 
-    cleanup(() => void server.close())
+    cleanup(() => {
+      server.closeAllConnections()
+      server.closeIdleConnections()
+      server.close()
+    })
 
     const transmit = new Transmit({
       baseUrl: `http://localhost:${PORT}`,
@@ -93,7 +105,11 @@ test.group('Client', () => {
       eventSourceConstructor: EventSource,
     })
 
-    cleanup(() => void transmit.close())
+    cleanup(() => {
+      server.closeAllConnections()
+      server.closeIdleConnections()
+      server.close()
+    })
 
     const unsubscribe = transmit.listenOn('channel', () => {})
     unsubscribe()
@@ -128,7 +144,11 @@ test.group('Client', () => {
       done()
     }).listen(PORT)
 
-    cleanup(() => void server.close())
+    cleanup(() => {
+      server.closeAllConnections()
+      server.closeIdleConnections()
+      server.close()
+    })
 
     const transmit = new Transmit({
       baseUrl: `http://localhost:${PORT}`,
@@ -142,7 +162,7 @@ test.group('Client', () => {
     const unsubscribe = transmit.listenOn('channel', () => {})
     unsubscribe()
 
-    await setTimeout(500)
+    await setTimeout(100)
   }).waitForDone()
 
   test('should send unsubscription request when set up unsubscribe call', async ({
@@ -169,10 +189,15 @@ test.group('Client', () => {
       assert.equal(req.url!, '/__transmit/unsubscribe')
       assert.equal(req.method, 'POST')
       assert.equal(req.headers['content-type'], 'application/json')
+
       done()
     }).listen(PORT)
 
-    cleanup(() => void server.close())
+    cleanup(() => {
+      server.closeAllConnections()
+      server.closeIdleConnections()
+      server.close()
+    })
 
     const transmit = new Transmit({
       baseUrl: `http://localhost:${PORT}`,
@@ -185,6 +210,6 @@ test.group('Client', () => {
     const unsubscribe = transmit.listenOn('channel', () => {})
     unsubscribe(true)
 
-    await setTimeout(500)
+    await setTimeout(100)
   }).waitForDone()
 })
