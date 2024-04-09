@@ -1,215 +1,98 @@
-import { setTimeout } from 'node:timers/promises'
+/*
+ * @adonisjs/transmit-client
+ *
+ * (c) AdonisJS
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
 import { test } from '@japa/runner'
-import EventSource from 'eventsource'
 import { Transmit } from '../src/transmit.js'
-import { createServer } from 'node:http'
+import { FakeEventSource } from '../test_utils/fake_event_source.js'
+import { Subscription } from '../src/subscription.js'
 
-const PORT = 1337
+test.group('Transmit', () => {
+  test('should connect to the server', ({ assert }) => {
+    let eventSource: FakeEventSource | null = null
 
-test.group('Client', () => {
-  test('should be able to connect to the server', async ({ assert, cleanup }, done) => {
-    assert.plan(1)
-
-    const server = createServer((req) => {
-      assert.match(
-        req.url!,
-        /\/__transmit\/events\?uid=([0-9a-fA-F]{8}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{12})/
-      )
-
-      done()
-    }).listen(PORT)
-
-    cleanup(() => {
-      server.closeAllConnections()
-      server.closeIdleConnections()
-      server.close()
-    })
-
-    const transmit = new Transmit({
-      baseUrl: `http://localhost:${PORT}`,
+    new Transmit({
+      baseUrl: 'http://localhost',
+      uidGenerator: () => '1',
       // @ts-expect-error - Mock is not 1:1 with EventSource
-      eventSourceConstructor: EventSource,
+      eventSourceFactory(url, options) {
+        eventSource = new FakeEventSource(url, options.withCredentials)
+        return eventSource
+      },
     })
 
-    cleanup(() => void transmit.close())
-  }).waitForDone()
-
-  test('should be able to subscribe to a channel', async ({ assert, cleanup }, done) => {
-    assert.plan(3)
-
-    const server = createServer((req, res) => {
-      //? Handling the connection request
-      if (req.url?.startsWith('/__transmit/events')) {
-        res.statusCode = 200
-        res.write('\n')
-        return
-      }
-
-      assert.equal(req.url!, '/__transmit/subscribe')
-      assert.equal(req.method, 'POST')
-      assert.equal(req.headers['content-type'], 'application/json')
-
-      done()
-    }).listen(PORT)
-
-    cleanup(() => {
-      server.closeAllConnections()
-      server.closeIdleConnections()
-      server.close()
-    })
-
-    const transmit = new Transmit({
-      baseUrl: `http://localhost:${PORT}`,
-      // @ts-expect-error - Mock is not 1:1 with EventSource
-      eventSourceConstructor: EventSource,
-    })
-
-    cleanup(() => void transmit.close())
-
-    const unsubscribe = transmit.listenOn('channel', () => {})
-
-    cleanup(() => void unsubscribe())
-  }).waitForDone()
-
-  test('should not send unsubscription request to server by default', async ({
-    assert,
-    cleanup,
-  }) => {
-    const server = createServer((req, res) => {
-      //? Handling the connection request
-      if (req.url?.startsWith('/__transmit/events')) {
-        res.statusCode = 200
-        res.write('\n')
-        return
-      }
-
-      //? Handling the subscription request
-      if (req.url?.startsWith('/__transmit/subscribe')) {
-        res.statusCode = 200
-        res.end()
-        return
-      }
-
-      assert.fail('Should not reach here')
-    }).listen(PORT)
-
-    cleanup(() => {
-      server.closeAllConnections()
-      server.closeIdleConnections()
-      server.close()
-    })
-
-    const transmit = new Transmit({
-      baseUrl: `http://localhost:${PORT}`,
-      // @ts-expect-error - Mock is not 1:1 with EventSource
-      eventSourceConstructor: EventSource,
-    })
-
-    cleanup(() => {
-      server.closeAllConnections()
-      server.closeIdleConnections()
-      server.close()
-    })
-
-    const unsubscribe = transmit.listenOn('channel', () => {})
-    unsubscribe()
-
-    await setTimeout(500)
+    assert.isDefined(eventSource)
+    assert.equal(eventSource!.constructorOptions.url, 'http://localhost/__transmit/events?uid=1')
+    assert.isTrue(eventSource!.constructorOptions.withCredentials)
   })
 
-  test('should send unsubscription request when set up in Transmit instance', async ({
-    assert,
-    cleanup,
-  }, done) => {
-    assert.plan(3)
-
-    const server = createServer((req, res) => {
-      //? Handling the connection request
-      if (req.url?.startsWith('/__transmit/events')) {
-        res.statusCode = 200
-        res.write('\n')
-        return
-      }
-
-      //? Handling the subscription request
-      if (req.url?.startsWith('/__transmit/subscribe')) {
-        res.statusCode = 200
-        res.end()
-        return
-      }
-
-      assert.equal(req.url!, '/__transmit/unsubscribe')
-      assert.equal(req.method, 'POST')
-      assert.equal(req.headers['content-type'], 'application/json')
-      done()
-    }).listen(PORT)
-
-    cleanup(() => {
-      server.closeAllConnections()
-      server.closeIdleConnections()
-      server.close()
+  test('should allow to create subscription', ({ assert }) => {
+    const transmit = new Transmit({
+      baseUrl: 'http://localhost',
+      uidGenerator: () => '1',
+      // @ts-expect-error - Mock is not 1:1 with EventSource
+      eventSourceFactory(url, options) {
+        return new FakeEventSource(url, options.withCredentials)
+      },
     })
+
+    const subscription = transmit.subscription('channel')
+
+    assert.instanceOf(subscription, Subscription)
+  })
+
+  test('should allow to customize the uid generator', ({ assert }) => {
+    const transmit = new Transmit({
+      baseUrl: 'http://localhost',
+      uidGenerator: () => 'custom-uid',
+      // @ts-expect-error - Mock is not 1:1 with EventSource
+      eventSourceFactory(url, options) {
+        return new FakeEventSource(url, options.withCredentials)
+      },
+    })
+
+    assert.equal(transmit.uid, 'custom-uid')
+  })
+
+  test('should compute uuid when uid generator is not defined', ({ assert }) => {
+    const transmit = new Transmit({
+      baseUrl: 'http://localhost',
+      // @ts-expect-error - Mock is not 1:1 with EventSource
+      eventSourceFactory(url, options) {
+        return new FakeEventSource(url, options.withCredentials)
+      },
+    })
+
+    assert.isString(transmit.uid)
+  })
+
+  test('should dispatch messages to the subscriptions', async ({ assert }) => {
+    assert.plan(1)
+
+    let eventSource: FakeEventSource | null = null
 
     const transmit = new Transmit({
-      baseUrl: `http://localhost:${PORT}`,
+      baseUrl: 'http://localhost',
+      uidGenerator: () => '1',
       // @ts-expect-error - Mock is not 1:1 with EventSource
-      eventSourceConstructor: EventSource,
-      removeSubscriptionOnZeroListener: true,
+      eventSourceFactory(url, options) {
+        eventSource = new FakeEventSource(url, options.withCredentials)
+        return eventSource
+      },
     })
 
-    cleanup(() => void transmit.close())
+    const subscription = transmit.subscription('channel')
 
-    const unsubscribe = transmit.listenOn('channel', () => {})
-    unsubscribe()
-
-    await setTimeout(100)
-  }).waitForDone()
-
-  test('should send unsubscription request when set up unsubscribe call', async ({
-    assert,
-    cleanup,
-  }, done) => {
-    assert.plan(3)
-
-    const server = createServer((req, res) => {
-      //? Handling the connection request
-      if (req.url?.startsWith('/__transmit/events')) {
-        res.statusCode = 200
-        res.write('\n')
-        return
-      }
-
-      //? Handling the subscription request
-      if (req.url?.startsWith('/__transmit/subscribe')) {
-        res.statusCode = 200
-        res.end()
-        return
-      }
-
-      assert.equal(req.url!, '/__transmit/unsubscribe')
-      assert.equal(req.method, 'POST')
-      assert.equal(req.headers['content-type'], 'application/json')
-
-      done()
-    }).listen(PORT)
-
-    cleanup(() => {
-      server.closeAllConnections()
-      server.closeIdleConnections()
-      server.close()
+    subscription.onMessage((payload) => {
+      assert.equal(payload, 'hello')
     })
 
-    const transmit = new Transmit({
-      baseUrl: `http://localhost:${PORT}`,
-      // @ts-expect-error - Mock is not 1:1 with EventSource
-      eventSourceConstructor: EventSource,
-    })
-
-    cleanup(() => void transmit.close())
-
-    const unsubscribe = transmit.listenOn('channel', () => {})
-    unsubscribe(true)
-
-    await setTimeout(100)
-  }).waitForDone()
+    // @ts-expect-error - Message is not 1:1 with MessageEvent
+    eventSource!.emit('message', { data: JSON.stringify({ channel: 'channel', payload: 'hello' }) })
+  })
 })

@@ -1,6 +1,6 @@
 {
   "name": "@adonisjs/transmit-client",
-  "version": "0.1.6",
+  "version": "0.2.0",
   "description": "A client for the native Server-Sent-Event module of AdonisJS.",
   "keywords": [
     "client",
@@ -15,25 +15,18 @@
   "author": "Romain Lanz <romain.lanz@pm.me>",
   "type": "module",
   "source": "src/transmit.ts",
-  "exports": {
-    "types": "./build/transmit.d.ts",
-    "require": "./build/transmit.cjs",
-    "default": "./build/transmit.modern.js"
-  },
   "main": "./build/transmit.js",
-  "module": "./build/transmit.module.js",
-  "unpkg": "./build/transmit.umd.js",
+  "types": "./build/transmit.d.ts",
   "scripts": {
     "clean": "del-cli build",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --ext=.ts",
     "format": "prettier --write .",
-    "build": "microbundle",
-    "dev": "microbundle watch",
+    "build": "tsup",
     "release": "np",
     "version": "npm run build",
     "prepublishOnly": "npm run build",
-    "test": "node --loader ts-node/esm --enable-source-maps bin/test.ts"
+    "test": "c8 node --loader ts-node/esm --enable-source-maps bin/test.ts"
   },
   "devDependencies": {
     "@adonisjs/eslint-config": "^1.1.7",
@@ -42,16 +35,13 @@
     "@japa/assert": "^2.0.0-2",
     "@japa/runner": "^3.0.0-9",
     "@swc/core": "^1.4.11",
-    "@types/eventsource": "^1.1.15",
+    "c8": "^9.1.0",
     "del-cli": "^5.0.0",
     "eslint": "^8.44.0",
-    "eventsource": "^2.0.2",
-    "happy-dom": "^14.3.9",
-    "jsdom": "^24.0.0",
-    "microbundle": "^0.15.1",
     "np": "^8.0.4",
     "prettier": "^3.0.0",
     "ts-node": "^10.9.2",
+    "tsup": "^8.0.2",
     "typescript": "^5.1.6"
   },
   "files": [
@@ -68,6 +58,17 @@
   "publishConfig": {
     "access": "public",
     "tag": "latest"
+  },
+  "tsup": {
+    "dts": true,
+    "clean": true,
+    "format": "esm",
+    "sourceMap": true,
+    "target": "es2020",
+    "outDir": "build",
+    "entry": [
+      "src/transmit.ts"
+    ]
   },
   "np": {
     "message": "chore(release): %s",
