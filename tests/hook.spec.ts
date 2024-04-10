@@ -60,6 +60,38 @@ test.group('Hook', () => {
       hook[event](1)
     })
 
+  test('should register a handler for {$self} event')
+    .with([HookEvent.OnReconnectFailed])
+    .run(({ assert }, event) => {
+      assert.plan(1)
+
+      const hook = new Hook()
+
+      hook.register(event, () => {
+        assert.isTrue(true)
+      })
+
+      hook[event]()
+    })
+
+  test('should register multiple handlers for {$self} event')
+    .with([HookEvent.OnReconnectFailed])
+    .run(({ assert }, event) => {
+      assert.plan(2)
+
+      const hook = new Hook()
+
+      hook.register(event, () => {
+        assert.isTrue(true)
+      })
+
+      hook.register(event, () => {
+        assert.isTrue(true)
+      })
+
+      hook[event]()
+    })
+
   test('should not throw error no handler are defined', () => {
     const hook = new Hook()
 

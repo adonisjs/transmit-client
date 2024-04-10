@@ -158,4 +158,13 @@ test.group('Subscription', (group) => {
     subscription.$runHandler(null)
     subscription.$runHandler(null)
   })
+
+  test('should get the number of registered handlers', async ({ assert }) => {
+    const subscription = subscriptionFactory()
+
+    subscription.onMessage(() => {})
+    subscription.onMessage(() => {})
+
+    assert.equal(subscription.handlerCount, 2)
+  })
 })

@@ -25,4 +25,20 @@ test.group('HttpClient', () => {
     assert.equal(request.headers.get('X-XSRF-TOKEN'), '')
     assert.equal(request.credentials, 'include')
   })
+
+  test('should retrieve XSRF token from cookies', ({ assert }) => {
+    // @ts-expect-error
+    globalThis.document = {
+      cookie: 'XSRF-TOKEN=1234',
+    }
+
+    const client = new HttpClient({
+      baseUrl: 'http://localhost',
+      uid: '1',
+    })
+
+    const request = client.createRequest('/test', { foo: 'bar' })
+
+    assert.equal(request.headers.get('X-XSRF-TOKEN'), '1234')
+  })
 })
