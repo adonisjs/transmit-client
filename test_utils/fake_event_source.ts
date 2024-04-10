@@ -7,6 +7,11 @@ export class FakeEventSource {
 
   constructor(url: string | URL, withCredentials: boolean = false) {
     this.constructorOptions = { url, withCredentials }
+
+    // Simulate the EventSource opening
+    setTimeout(() => {
+      this.emit('open', new MessageEvent('open'))
+    }, 0)
   }
 
   onerror(): any {
@@ -32,5 +37,13 @@ export class FakeEventSource {
   emit(type: string, event: MessageEvent) {
     // @ts-expect-error - We know this is a valid type
     this.listeners[type]?.forEach((listener) => listener.call(this, event))
+  }
+
+  sendOpenEvent() {
+    this.emit('open', new MessageEvent('open'))
+  }
+
+  sendCloseEvent() {
+    this.emit('close', new MessageEvent('close'))
   }
 }

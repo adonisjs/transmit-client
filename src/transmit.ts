@@ -18,6 +18,7 @@ interface TransmitOptions {
   uidGenerator?: () => string
   eventSourceFactory?: (url: string | URL, options: { withCredentials: boolean }) => EventSource
   eventTargetFactory?: () => EventTarget | null
+  httpClientFactory?: (baseUrl: string, uid: string) => HttpClient
   beforeSubscribe?: (request: RequestInit) => void
   beforeUnsubscribe?: (request: RequestInit) => void
   maxReconnectAttempts?: number
@@ -94,6 +95,10 @@ export class Transmit {
       options.eventTargetFactory = () => new EventTarget()
     }
 
+    if (typeof options.httpClientFactory === 'undefined') {
+      options.httpClientFactory = (baseUrl, uid) => new HttpClient({ baseUrl, uid })
+    }
+
     if (typeof options.maxReconnectAttempts === 'undefined') {
       options.maxReconnectAttempts = 5
     }
@@ -101,10 +106,7 @@ export class Transmit {
     this.#uid = options.uidGenerator()
     this.#eventTarget = options.eventTargetFactory()
     this.#hooks = new Hook()
-    this.#httpClient = new HttpClient({
-      baseUrl: options.baseUrl,
-      uid: this.#uid,
-    })
+    this.#httpClient = options.httpClientFactory(options.baseUrl, this.#uid)
 
     if (options.beforeSubscribe) {
       this.#hooks.register(HookEvent.BeforeSubscribe, options.beforeSubscribe)
@@ -160,7 +162,9 @@ export class Transmit {
       this.#reconnectAttempts = 0
 
       for (const subscription of this.#subscriptions.values()) {
-        void subscription.create()
+        if (subscription.isCreated) {
+          void subscription.forceCreate()
+        }
       }
     })
   }

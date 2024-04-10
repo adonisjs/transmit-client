@@ -92,6 +92,10 @@ export class Subscription {
       return
     }
 
+    return this.forceCreate()
+  }
+
+  async forceCreate() {
     if (this.#getEventSourceStatus() !== TransmitStatus.Connected) {
       return new Promise((resolve) => {
         setTimeout(() => {
