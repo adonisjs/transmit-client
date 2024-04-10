@@ -35,10 +35,10 @@ AdonisJS Transmit Client is a client for the native Server-Sent-Event (SSE) modu
 
   - [Installation](#installation)
   - [Usage](#usage)
-  - [Subscribing to channels](#subscribing-to-channels)
+  - [Creating a subscription](#creating-a-subscription)
+    - [Unsubscribing](#unsubscribing)
     - [Subscription Request](#subscription-request)
     - [Reconnecting](#reconnecting)
-    - [Unsubscribing](#unsubscribing)
 - [Events](#events)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
@@ -77,12 +77,10 @@ Then, you have to call the `create` method on the subscription to register it on
 await subscription.create()
 ```
 
-Once the subscription is created, you can listen for events on the channel using the `onMessage` method. You can define as many listeners as you want.
+You can listen for events on the channel using the `onMessage` method. You can define as many listeners as you want on the same subscription.
 
 ```ts
-import {subscribe} from 'node:diagnostics_channel'
-
-subscribe.onMessage((message) => {
+subscription.onMessage((message) => {
   console.log(message)
 })
 ```
@@ -90,10 +88,12 @@ subscribe.onMessage((message) => {
 You can also listen only once for a message using the `onMessagetOnce` method.
 
 ```ts
-subscribe.onMessageOnce((message) => {
+subscription.onMessageOnce((message) => {
   console.log('I will be called only once')
 })
 ```
+
+Note listeners are local only; you can add them before or after registering your subscription on the server.
 
 ### Unsubscribing
 
