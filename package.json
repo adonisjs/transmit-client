@@ -1,6 +1,6 @@
 {
   "name": "@adonisjs/transmit-client",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "A client for the native Server-Sent-Event module of AdonisJS.",
   "keywords": [
     "client",
