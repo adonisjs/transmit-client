@@ -1,6 +1,6 @@
 {
   "name": "@adonisjs/transmit-client",
-  "version": "0.2.0",
+  "version": "0.1.6",
   "description": "A client for the native Server-Sent-Event module of AdonisJS.",
   "keywords": [
     "client",
@@ -23,7 +23,7 @@
     "lint": "eslint . --ext=.ts",
     "format": "prettier --write .",
     "build": "tsup",
-    "release": "np",
+    "release": "npx release-it",
     "version": "npm run build",
     "prepublishOnly": "npm run build",
     "test": "c8 node --loader ts-node/esm --enable-source-maps bin/test.ts"
@@ -38,8 +38,8 @@
     "c8": "^9.1.0",
     "del-cli": "^5.0.0",
     "eslint": "^8.44.0",
-    "np": "^8.0.4",
     "prettier": "^3.0.0",
+    "release-it": "^17.1.1",
     "ts-node": "^10.9.2",
     "tsup": "^8.0.2",
     "typescript": "^5.1.6"
@@ -70,10 +70,16 @@
       "src/transmit.ts"
     ]
   },
-  "np": {
-    "message": "chore(release): %s",
-    "tag": "latest",
-    "branch": "main",
-    "anyBranch": false
+  "release-it": {
+    "git": {
+      "commitMessage": "chore(release): ${version}",
+      "tagAnnotation": "v${version}",
+      "tagName": "v${version}"
+    },
+    "github": {
+      "release": true,
+      "releaseName": "v${version}",
+      "web": true
+    }
   }
 }
