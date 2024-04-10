@@ -49,12 +49,6 @@ Install the package from the npm registry as follows:
 
 ```sh
 npm i @adonisjs/transmit-client
-
-# yarn
-yarn add @adonisjs/transmit-client
-
-# pnpm
-pnpm add @adonisjs/transmit-client
 ```
 
 ## Usage
@@ -69,22 +63,55 @@ const transmit = new Transmit({
 })
 ```
 
-## Subscribing to channels
+## Creating a subscription
 
-The `listenOn` method accepts the channel name and a callback to be invoked when the event is received from the server.
+The `subscription` method is used to create a subscription to a channel. The method accepts the channel name
 
 ```ts
-transmit.listenOn<{ message: string }>('chat/1', (payload) => {
-  console.log(payload.message)
+const subscription = transmit.subscription('chat/1')
+```
+
+Then, you have to call the `create` method on the subscription to register it on the backend.
+
+```ts
+await subscription.create()
+```
+
+Once the subscription is created, you can listen for events on the channel using the `onMessage` method. You can define as many listeners as you want.
+
+```ts
+import {subscribe} from 'node:diagnostics_channel'
+
+subscribe.onMessage((message) => {
+  console.log(message)
 })
 ```
 
-You can also listen from a channel only once.
+You can also listen only once for a message using the `onMessagetOnce` method.
 
 ```ts
-transmit.listenOnce<{ message: string }>('chat/1', () => {
-  console.log('first message received!')
+subscribe.onMessageOnce((message) => {
+  console.log('I will be called only once')
 })
+```
+
+### Unsubscribing
+
+The `onMessage` method returns a function to remove the message handler from the subscription.
+
+```ts
+const unsubscribe = subscription.onMessage(() => {
+  console.log('message received!')
+})
+
+// later
+unsubscribe()
+```
+
+If you want to entirely remove the subscription from the server, you can call the `delete` method.
+
+```ts
+await subscription.delete()
 ```
 
 ### Subscription Request
@@ -94,10 +121,10 @@ You can alter the subscription request by using the `beforeSubscribe` or `before
 ```ts
 const transmit = new Transmit({
   baseUrl: 'http://localhost:3333',
-  beforeSubscribe: (_request: RequestInit) => {
+  beforeSubscribe: (_request: Request) => {
     console.log('beforeSubscribe')
   },
-  beforeUnsubscribe: (_request: RequestInit) => {
+  beforeUnsubscribe: (_request: Request) => {
     console.log('beforeUnsubscribe')
   },
 })
@@ -120,44 +147,11 @@ const transmit = new Transmit({
 })
 ```
 
-### Unsubscribing
-
-The `listenOn` method returns a function to unsubscribe from the channel.
-
-```ts
-const unsubscribe = transmit.listenOn('chat/1', () => {
-  console.log('message received!')
-})
-
-// later
-unsubscribe()
-```
-
-When unsubscribing from a channel, the client will remove the local listener for that channel. By default, it will not send a request to the server when there are no more listener to unsubscribe from the channel. You can change this behavior by setting the `removeSubscriptionOnZeroListener` option to `true`.
-
-```ts
-const transmit = new Transmit({
-  baseUrl: 'http://localhost:3333',
-  removeSubscriptionOnZeroListener: true,
-})
-```
-
-You can also change the default settings locally by passing a boolean to the unsubscribe method.
-
-```ts
-const unsubscribe = transmit.listenOn('chat/1', () => {
-  console.log('message received!')
-})
-
-// later
-unsubscribe(true) // or false
-```
-
 # Events
 
-The`Transmit` class extends the [`EventTarget`](https://developer.mozilla.org/en-US/docs/Web/API/EventTarget) class and emits multiple events.
+The`Transmit` class uses the [`EventTarget`](https://developer.mozilla.org/en-US/docs/Web/API/EventTarget) class to emits multiple events.
 
-```ts
+  ```ts
 transmit.on('connected', () => {
   console.log('connected')
 })
