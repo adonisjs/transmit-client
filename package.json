@@ -14,9 +14,9 @@
   "license": "MIT",
   "author": "Romain Lanz <romain.lanz@pm.me>",
   "type": "module",
-  "source": "src/transmit.ts",
-  "main": "./build/transmit.js",
-  "types": "./build/transmit.d.ts",
+  "source": "index.ts",
+  "main": "./build/index.js",
+  "types": "./build/index.d.ts",
   "scripts": {
     "clean": "del-cli build",
     "typecheck": "tsc --noEmit",
@@ -67,7 +67,7 @@
     "target": "es2020",
     "outDir": "build",
     "entry": [
-      "src/transmit.ts"
+      "index.ts"
     ]
   },
   "release-it": {
