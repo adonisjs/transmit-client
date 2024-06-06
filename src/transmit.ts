@@ -22,6 +22,8 @@ interface TransmitOptions {
   beforeSubscribe?: (request: RequestInit) => void
   beforeUnsubscribe?: (request: RequestInit) => void
   maxReconnectAttempts?: number
+  reconnectTimeoutMs?: number
+  pingTimeoutMs?: number
   onReconnectAttempt?: (attempt: number) => void
   onReconnectFailed?: () => void
   onSubscribeFailed?: (response: Response) => void
@@ -76,6 +78,16 @@ export class Transmit {
   #reconnectAttempts: number = 0
 
   /**
+   * Timeout until next connection attempt is made
+   */
+  #reconnectTimeout: NodeJS.Timeout | undefined
+
+  /**
+   * Dead connection timeout
+   */
+  #deadConnectionTimeout: NodeJS.Timeout | undefined
+
+  /**
    * Returns the unique identifier of the client.
    */
   get uid() {
@@ -101,6 +113,14 @@ export class Transmit {
 
     if (typeof options.maxReconnectAttempts === 'undefined') {
       options.maxReconnectAttempts = 5
+    }
+
+    if (typeof options.reconnectTimeoutMs === 'undefined') {
+      options.reconnectTimeoutMs = 3000
+    }
+
+    if (typeof options.pingTimeoutMs === 'undefined') {
+      options.pingTimeoutMs = 10_000
     }
 
     this.#uid = options.uidGenerator()
@@ -171,6 +191,12 @@ export class Transmit {
 
   #onMessage(event: MessageEvent) {
     const data = JSON.parse(event.data)
+
+    if (data.channel === '$$transmit/ping') {
+      this.#handlePingMessage()
+      return
+    }
+
     const subscription = this.#subscriptions.get(data.channel)
 
     if (typeof subscription === 'undefined') {
@@ -185,14 +211,20 @@ export class Transmit {
     }
   }
 
+  #handlePingMessage() {
+    clearTimeout(this.#deadConnectionTimeout)
+
+    this.#deadConnectionTimeout = setTimeout(() => {
+      this.close()
+
+      this.#onError()
+    }, this.#options.pingTimeoutMs)
+  }
+
   #onError() {
     if (this.#status !== TransmitStatus.Reconnecting) {
       this.#changeStatus(TransmitStatus.Disconnected)
     }
-
-    this.#changeStatus(TransmitStatus.Reconnecting)
-
-    this.#hooks.onReconnectAttempt(this.#reconnectAttempts + 1)
 
     if (
       this.#options.maxReconnectAttempts &&
@@ -205,7 +237,16 @@ export class Transmit {
       return
     }
 
+    this.#changeStatus(TransmitStatus.Reconnecting)
+
     this.#reconnectAttempts++
+
+    clearTimeout(this.#reconnectTimeout)
+    this.#reconnectTimeout = setTimeout(() => {
+      this.#hooks.onReconnectAttempt(this.#reconnectAttempts)
+
+      this.#connect()
+    }, this.#options.reconnectTimeoutMs)
   }
 
   subscription(channel: string) {
@@ -231,6 +272,8 @@ export class Transmit {
   }
 
   close() {
+    clearTimeout(this.#reconnectTimeout)
+    clearTimeout(this.#deadConnectionTimeout)
     this.#eventSource?.close()
   }
 }
