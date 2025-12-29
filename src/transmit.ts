@@ -230,6 +230,11 @@ export class Transmit {
     this.#eventTarget?.addEventListener(event, callback)
   }
 
+  off(event: Exclude<TransmitStatus, 'connecting'>, callback: (event: CustomEvent) => void) {
+    // @ts-ignore
+    this.#eventTarget?.removeEventListener(event, callback)
+  }
+
   close() {
     this.#eventSource?.close()
   }
