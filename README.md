@@ -149,9 +149,9 @@ const transmit = new Transmit({
 
 # Events
 
-The`Transmit` class uses the [`EventTarget`](https://developer.mozilla.org/en-US/docs/Web/API/EventTarget) class to emits multiple events.
+The `Transmit` class uses the [`EventTarget`](https://developer.mozilla.org/en-US/docs/Web/API/EventTarget) class to emits multiple events.
 
-  ```ts
+```ts
 transmit.on('connected', () => {
   console.log('connected')
 })
@@ -163,6 +163,17 @@ transmit.on('disconnected', () => {
 transmit.on('reconnecting', () => {
   console.log('reconnecting')
 })
+```
+
+That means you can also remove an event listener previously registered, by passing the event listener function itself.
+
+```ts
+const onConnected = () => {
+  console.log('connected')
+}
+
+transmit.on('connected', onConnected)
+transmit.off('connected', onConnected)
 ```
 
 [gh-workflow-image]: https://img.shields.io/github/actions/workflow/status/adonisjs/transmit-client/test?style=for-the-badge
