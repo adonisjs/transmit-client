@@ -61,30 +61,36 @@ test.group('Subscription', (group) => {
 
   test('should not create a subscription when event source is not connected', async ({
     assert,
+    cleanup,
   }) => {
     let status: TransmitStatus = TransmitStatus.Connecting
     const subscription = subscriptionFactory(() => status)
 
     const pending = subscription.create()
 
+    cleanup(async () => {
+      status = TransmitStatus.Connected
+      await pending
+    })
+
     //? Waiting for the request to be sent
     await setTimeout(500)
 
     assert.isFalse(subscription.isCreated)
     assert.lengthOf(client.sentRequests, 0)
-
-    //? Changing the status to connected to avoid setTimeout loop
-    status = TransmitStatus.Connected
-
-    await pending
   })
 
-  test('should not queue multiple create retries', async ({ assert }) => {
+  test('should not queue multiple create retries', async ({ assert, cleanup }) => {
     let status: TransmitStatus = TransmitStatus.Connecting
     const subscription = subscriptionFactory(() => status)
 
     const pending = subscription.create()
     const pendingSecond = subscription.create()
+
+    cleanup(async () => {
+      status = TransmitStatus.Connected
+      await Promise.all([pending, pendingSecond])
+    })
 
     await setTimeout(200)
 
