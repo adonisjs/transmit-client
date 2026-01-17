@@ -38,6 +38,7 @@ AdonisJS Transmit Client is a client for the native Server-Sent-Event (SSE) modu
   - [Creating a subscription](#creating-a-subscription)
     - [Unsubscribing](#unsubscribing)
     - [Subscription Request](#subscription-request)
+    - [Authenticated event stream](#authenticated-event-stream)
     - [Reconnecting](#reconnecting)
 - [Events](#events)
 
@@ -129,6 +130,67 @@ const transmit = new Transmit({
   },
 })
 ```
+
+### Authenticated event stream
+
+The `__transmit/events` stream is opened using `EventSource`, which cannot send custom headers. That means `beforeSubscribe`/`beforeUnsubscribe` only affect the subscribe/unsubscribe HTTP calls. If you rely on header-based auth, protect `__transmit/subscribe` and `__transmit/unsubscribe`, or provide a custom `eventSourceFactory` that can send headers.
+
+Example using `@microsoft/fetch-event-source`:
+
+```ts
+import { fetchEventSource } from '@microsoft/fetch-event-source'
+
+function createFetchEventSource(
+  url: string | URL,
+  options: { withCredentials: boolean },
+  headers: Record<string, string>
+) {
+  const controller = new AbortController()
+  const listeners = new Map<string, Set<(event: MessageEvent) => void>>()
+
+  const dispatch = (type: string, data?: string) => {
+    const event = new MessageEvent(type, { data })
+    listeners.get(type)?.forEach((listener) => listener(event))
+  }
+
+  fetchEventSource(url.toString(), {
+    headers,
+    credentials: options.withCredentials ? 'include' : 'omit',
+    signal: controller.signal,
+    onopen: () => dispatch('open'),
+    onmessage: (message) => dispatch(message.event ?? 'message', message.data),
+    onerror: () => {
+      dispatch('error')
+    },
+  })
+
+  return {
+    addEventListener(type: string, listener: (event: MessageEvent) => void) {
+      if (!listeners.has(type)) {
+        listeners.set(type, new Set())
+      }
+      listeners.get(type)!.add(listener)
+    },
+    removeEventListener(type: string, listener: (event: MessageEvent) => void) {
+      listeners.get(type)?.delete(listener)
+    },
+    close() {
+      controller.abort()
+    },
+  } as EventSource
+}
+
+const transmit = new Transmit({
+  baseUrl: 'http://localhost:3333',
+  eventSourceFactory: (url, options) => {
+    return createFetchEventSource(url, options, {
+      Authorization: `Bearer ${token}`,
+    })
+  },
+})
+```
+
+Note: this adapter is minimal and only wires `open`, `error`, and `message` (or custom event names). If you rely on other `EventSource` features like `readyState` or `onopen`, you may want to expand it.
 
 ### Reconnecting
 
