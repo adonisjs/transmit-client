@@ -7,7 +7,11 @@
 
 <div align="center">
 
-[![gh-workflow-image]][gh-workflow-url] [![npm-image]][npm-url] ![][typescript-image] [![license-image]][license-url] [![synk-image]][synk-url]
+[![typescript-image]][typescript-url]
+[![gh-workflow-image]][gh-workflow-url]
+[![npm-image]][npm-url]
+[![npm-download-image]][npm-download-url]
+[![license-image]][license-url]
 
 </div>
 
@@ -265,17 +269,13 @@ transmit.on('connected', onConnected)
 transmit.off('connected', onConnected)
 ```
 
-[gh-workflow-image]: https://img.shields.io/github/actions/workflow/status/adonisjs/transmit-client/test?style=for-the-badge
-[gh-workflow-url]: https://github.com/adonisjs/transmit-client/actions/workflows/test.yml "Github action"
-
-[typescript-image]: https://img.shields.io/badge/Typescript-294E80.svg?style=for-the-badge&logo=typescript
-[typescript-url]: "typescript"
-
+[gh-workflow-image]: https://img.shields.io/github/actions/workflow/status/adonisjs/transmit-client/checks.yml?branch=develop&style=for-the-badge
+[gh-workflow-url]: https://github.com/adonisjs/transmit-client/actions/workflows/checks.yml
 [npm-image]: https://img.shields.io/npm/v/@adonisjs/transmit-client.svg?style=for-the-badge&logo=npm
-[npm-url]: https://npmjs.org/package/@adonisjs/transmit-client 'npm'
-
+[npm-url]: https://www.npmjs.com/package/@adonisjs/transmit-client
+[npm-download-image]: https://img.shields.io/npm/dm/@adonisjs/transmit-client?style=for-the-badge
+[npm-download-url]: https://www.npmjs.com/package/@adonisjs/transmit-client
+[typescript-image]: https://img.shields.io/badge/Typescript-294E80.svg?style=for-the-badge&logo=typescript
+[typescript-url]: https://www.typescriptlang.org
 [license-image]: https://img.shields.io/npm/l/@adonisjs/transmit-client?color=blueviolet&style=for-the-badge
-[license-url]: LICENSE.md 'license'
-
-[synk-image]: https://img.shields.io/snyk/vulnerabilities/github/adonisjs/transmit-client?label=Synk%20Vulnerabilities&style=for-the-badge
-[synk-url]: https://snyk.io/test/github/adonisjs/transmit-client?targetFile=package.json "synk"
+[license-url]: LICENSE.md
