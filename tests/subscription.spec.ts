@@ -146,6 +146,22 @@ test.group('Subscription', (group) => {
     subscription.$runHandler(1)
   })
 
+  test('should keep running handlers when one throws', async ({ assert }) => {
+    assert.plan(1)
+
+    const subscription = subscriptionFactory()
+
+    subscription.onMessage(() => {
+      throw new Error('Boom')
+    })
+
+    subscription.onMessage(() => {
+      assert.isTrue(true)
+    })
+
+    subscription.$runHandler(null)
+  })
+
   test('should run only once some handler', async ({ assert }) => {
     assert.plan(1)
 

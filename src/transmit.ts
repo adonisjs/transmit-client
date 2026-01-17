@@ -181,7 +181,7 @@ export class Transmit {
       subscription.$runHandler(data.payload)
     } catch (error) {
       // TODO: Rescue
-      console.log(error)
+      console.error(error)
     }
   }
 

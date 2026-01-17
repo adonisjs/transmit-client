@@ -83,7 +83,12 @@ export class Subscription {
    */
   $runHandler(message: unknown) {
     for (const handler of this.#handlers) {
-      handler(message)
+      try {
+        handler(message)
+      } catch (error) {
+        // TODO: Rescue
+        console.error(error)
+      }
     }
   }
 
