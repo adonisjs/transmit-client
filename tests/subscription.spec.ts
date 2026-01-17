@@ -65,7 +65,7 @@ test.group('Subscription', (group) => {
     let status: TransmitStatus = TransmitStatus.Connecting
     const subscription = subscriptionFactory(() => status)
 
-    void subscription.create()
+    const pending = subscription.create()
 
     //? Waiting for the request to be sent
     await setTimeout(500)
@@ -75,6 +75,25 @@ test.group('Subscription', (group) => {
 
     //? Changing the status to connected to avoid setTimeout loop
     status = TransmitStatus.Connected
+
+    await pending
+  })
+
+  test('should not queue multiple create retries', async ({ assert }) => {
+    let status: TransmitStatus = TransmitStatus.Connecting
+    const subscription = subscriptionFactory(() => status)
+
+    const pending = subscription.create()
+    const pendingSecond = subscription.create()
+
+    await setTimeout(200)
+
+    status = TransmitStatus.Connected
+
+    await Promise.all([pending, pendingSecond])
+
+    assert.isTrue(subscription.isCreated)
+    assert.lengthOf(client.sentRequests, 1)
   })
 
   test('should delete a subscription', async ({ assert }) => {

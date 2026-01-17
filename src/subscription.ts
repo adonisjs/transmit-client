@@ -46,6 +46,11 @@ export class Subscription {
   #handlers = new Set<(message: any) => void>()
 
   /**
+   * Pending create retry promise to avoid stacking timeouts.
+   */
+  #createPending: Promise<void> | null = null
+
+  /**
    * Current status of the subscription.
    */
   #status: SubscriptionStatus = SubscriptionStatus.Pending
@@ -97,17 +102,30 @@ export class Subscription {
       return
     }
 
+    if (this.#getEventSourceStatus() !== TransmitStatus.Connected && this.#createPending) {
+      return this.#createPending
+    }
+
     return this.forceCreate()
   }
 
   async forceCreate() {
     if (this.#getEventSourceStatus() !== TransmitStatus.Connected) {
-      return new Promise((resolve) => {
+      if (this.#createPending) {
+        return this.#createPending
+      }
+
+      this.#createPending = new Promise((resolve) => {
         setTimeout(() => {
+          this.#createPending = null
           resolve(this.create())
         }, 100)
       })
+
+      return this.#createPending
     }
+
+    this.#createPending = null
 
     const request = this.#httpClient.createRequest('/__transmit/subscribe', {
       channel: this.#channel,
