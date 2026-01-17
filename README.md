@@ -39,6 +39,7 @@ AdonisJS Transmit Client is a client for the native Server-Sent-Event (SSE) modu
     - [Unsubscribing](#unsubscribing)
     - [Subscription Request](#subscription-request)
     - [Authenticated event stream](#authenticated-event-stream)
+    - [Custom UID Generator](#custom-uid-generator)
     - [Reconnecting](#reconnecting)
 - [Events](#events)
 
@@ -191,6 +192,32 @@ const transmit = new Transmit({
 ```
 
 Note: this adapter is minimal and only wires `open`, `error`, and `message` (or custom event names). If you rely on other `EventSource` features like `readyState` or `onopen`, you may want to expand it.
+
+### Custom UID Generator
+
+By default, Transmit uses `crypto.randomUUID()` to generate unique client identifiers. This method only works in [secure contexts](https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts) (HTTPS). If you need to use Transmit over HTTP (e.g., local network deployments), you can provide a custom `uidGenerator` function.
+
+```ts
+const transmit = new Transmit({
+  baseUrl: 'http://localhost:3333',
+  uidGenerator: () => {
+    return Array.from({ length: 16 }, () =>
+      Math.floor(Math.random() * 256).toString(16).padStart(2, '0')
+    ).join('')
+  },
+})
+```
+
+Or using a library like `uuid`:
+
+```ts
+import { v4 as uuid } from 'uuid'
+
+const transmit = new Transmit({
+  baseUrl: 'http://localhost:3333',
+  uidGenerator: () => uuid(),
+})
+```
 
 ### Reconnecting
 
