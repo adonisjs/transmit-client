@@ -8,9 +8,9 @@
  */
 
 import { SubscriptionStatus } from './subscription_status.js'
-import { HttpClient } from './http_client.js'
-import { Hook } from './hook.js'
 import { TransmitStatus } from './transmit_status.js'
+import type { Hook } from './hook.js'
+import type { HttpClient } from './http_client.js'
 
 interface SubscriptionOptions {
   channel: string
