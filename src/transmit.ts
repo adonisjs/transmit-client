@@ -209,16 +209,17 @@ export class Transmit {
   }
 
   subscription(channel: string) {
+    if (this.#subscriptions.has(channel)) {
+      return this.#subscriptions.get(channel)!
+    }
+
     const subscription = new Subscription({
       channel,
       httpClient: this.#httpClient,
       hooks: this.#hooks,
       getEventSourceStatus: () => this.#status,
+      onDelete: () => this.#subscriptions.delete(channel),
     })
-
-    if (this.#subscriptions.has(channel)) {
-      return this.#subscriptions.get(channel)!
-    }
 
     this.#subscriptions.set(channel, subscription)
 

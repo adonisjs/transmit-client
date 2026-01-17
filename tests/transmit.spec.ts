@@ -165,4 +165,33 @@ test.group('Transmit', () => {
 
     assert.equal(httpClient!.sentRequests.length, 2)
   })
+
+  test('should remove subscription from map after delete', async ({ assert }) => {
+    let eventSource: FakeEventSource | null = null
+
+    const transmit = new Transmit({
+      baseUrl: 'http://localhost',
+      uidGenerator: () => '1',
+      // @ts-expect-error - Mock is not 1:1 with EventSource
+      eventSourceFactory(url, options) {
+        eventSource = new FakeEventSource(url, options.withCredentials)
+        return eventSource
+      },
+      httpClientFactory(baseUrl, uid) {
+        return new FakeHttpClient({ baseUrl, uid })
+      },
+    })
+
+    eventSource!.sendOpenEvent()
+
+    const subscription = transmit.subscription('channel')
+    await subscription.create()
+    await subscription.delete()
+
+    const newSubscription = transmit.subscription('channel')
+
+    assert.notStrictEqual(subscription, newSubscription)
+    assert.isTrue(subscription.isDeleted)
+    assert.isFalse(newSubscription.isDeleted)
+  })
 })

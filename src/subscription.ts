@@ -17,6 +17,7 @@ interface SubscriptionOptions {
   httpClient: HttpClient
   getEventSourceStatus: () => TransmitStatus
   hooks?: Hook
+  onDelete?: () => void
 }
 
 export class Subscription {
@@ -29,6 +30,11 @@ export class Subscription {
    * Hook instance.
    */
   #hooks: Hook | undefined
+
+  /**
+   * Callback to call when the subscription is deleted.
+   */
+  readonly #onDelete: (() => void) | undefined
 
   /**
    * Channel name.
@@ -80,6 +86,7 @@ export class Subscription {
     this.#channel = options.channel
     this.#httpClient = options.httpClient
     this.#hooks = options.hooks
+    this.#onDelete = options.onDelete
     this.#getEventSourceStatus = options.getEventSourceStatus
   }
 
@@ -172,6 +179,7 @@ export class Subscription {
 
       this.#status = SubscriptionStatus.Deleted
       this.#hooks?.onUnsubscription(this.#channel)
+      this.#onDelete?.()
     } catch (error) {}
   }
 
