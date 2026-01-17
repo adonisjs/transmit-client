@@ -57,6 +57,14 @@
     "provenance": true,
     "access": "public"
   },
+  "homepage": "https://github.com/adonisjs/transmit-client#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/adonisjs/transmit-client.git"
+  },
+  "bugs": {
+    "url": "https://github.com/adonisjs/transmit-client/issues"
+  },
   "tsup": {
     "dts": true,
     "clean": true,
