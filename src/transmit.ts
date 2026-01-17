@@ -19,8 +19,8 @@ interface TransmitOptions {
   eventSourceFactory?: (url: string | URL, options: { withCredentials: boolean }) => EventSource
   eventTargetFactory?: () => EventTarget | null
   httpClientFactory?: (baseUrl: string, uid: string) => HttpClient
-  beforeSubscribe?: (request: RequestInit) => void
-  beforeUnsubscribe?: (request: RequestInit) => void
+  beforeSubscribe?: (request: Request) => void
+  beforeUnsubscribe?: (request: Request) => void
   maxReconnectAttempts?: number
   onReconnectAttempt?: (attempt: number) => void
   onReconnectFailed?: () => void
