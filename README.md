@@ -230,7 +230,7 @@ The transmit client will automatically reconnect to the server when the connecti
 ```ts
 const transmit = new Transmit({
   baseUrl: 'http://localhost:3333',
-  maxReconnectionAttempts: 5,
+  maxReconnectAttempts: 5,
   onReconnectAttempt: (attempt) => {
     console.log('Reconnect attempt ' + attempt)
   },
