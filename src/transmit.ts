@@ -29,6 +29,21 @@ interface TransmitOptions {
   onUnsubscription?: (channel: string) => void
 }
 
+/**
+ * Options once defaults are applied. Built once in the constructor.
+ */
+type ResolvedTransmitOptions = TransmitOptions &
+  Required<
+    Pick<
+      TransmitOptions,
+      | 'uidGenerator'
+      | 'eventSourceFactory'
+      | 'eventTargetFactory'
+      | 'httpClientFactory'
+      | 'maxReconnectAttempts'
+    >
+  >
+
 export class Transmit {
   /**
    * Unique identifier for this client.
@@ -38,7 +53,7 @@ export class Transmit {
   /**
    * Options for this client.
    */
-  #options: TransmitOptions
+  #options: ResolvedTransmitOptions
 
   /**
    * Registered subscriptions.
@@ -83,30 +98,20 @@ export class Transmit {
   }
 
   constructor(options: TransmitOptions) {
-    if (typeof options.uidGenerator === 'undefined') {
-      options.uidGenerator = () => crypto.randomUUID()
+    this.#options = {
+      ...options,
+      uidGenerator: options.uidGenerator ?? (() => crypto.randomUUID()),
+      eventSourceFactory: options.eventSourceFactory ?? ((...args) => new EventSource(...args)),
+      eventTargetFactory: options.eventTargetFactory ?? (() => new EventTarget()),
+      httpClientFactory:
+        options.httpClientFactory ?? ((baseUrl, uid) => new HttpClient({ baseUrl, uid })),
+      maxReconnectAttempts: options.maxReconnectAttempts ?? 5,
     }
 
-    if (typeof options.eventSourceFactory === 'undefined') {
-      options.eventSourceFactory = (...args) => new EventSource(...args)
-    }
-
-    if (typeof options.eventTargetFactory === 'undefined') {
-      options.eventTargetFactory = () => new EventTarget()
-    }
-
-    if (typeof options.httpClientFactory === 'undefined') {
-      options.httpClientFactory = (baseUrl, uid) => new HttpClient({ baseUrl, uid })
-    }
-
-    if (typeof options.maxReconnectAttempts === 'undefined') {
-      options.maxReconnectAttempts = 5
-    }
-
-    this.#uid = options.uidGenerator()
-    this.#eventTarget = options.eventTargetFactory()
+    this.#uid = this.#options.uidGenerator()
+    this.#eventTarget = this.#options.eventTargetFactory()
     this.#hooks = new Hook()
-    this.#httpClient = options.httpClientFactory(options.baseUrl, this.#uid)
+    this.#httpClient = this.#options.httpClientFactory(this.#options.baseUrl, this.#uid)
 
     if (options.beforeSubscribe) {
       this.#hooks.register(HookEvent.BeforeSubscribe, options.beforeSubscribe)
@@ -136,7 +141,6 @@ export class Transmit {
       this.#hooks.register(HookEvent.OnUnsubscription, options.onUnsubscription)
     }
 
-    this.#options = options
     this.#connect()
   }
 
@@ -151,7 +155,7 @@ export class Transmit {
     const url = new URL(`${this.#options.baseUrl}/__transmit/events`)
     url.searchParams.append('uid', this.#uid)
 
-    this.#eventSource = this.#options.eventSourceFactory!(url, {
+    this.#eventSource = this.#options.eventSourceFactory(url, {
       withCredentials: true,
     })
 
@@ -190,14 +194,7 @@ export class Transmit {
       this.#changeStatus(TransmitStatus.Disconnected)
     }
 
-    this.#changeStatus(TransmitStatus.Reconnecting)
-
-    this.#hooks.onReconnectAttempt(this.#reconnectAttempts + 1)
-
-    if (
-      this.#options.maxReconnectAttempts &&
-      this.#reconnectAttempts >= this.#options.maxReconnectAttempts
-    ) {
+    if (this.#reconnectAttempts >= this.#options.maxReconnectAttempts) {
       this.close()
 
       this.#hooks.onReconnectFailed()
@@ -205,7 +202,9 @@ export class Transmit {
       return
     }
 
+    this.#changeStatus(TransmitStatus.Reconnecting)
     this.#reconnectAttempts++
+    this.#hooks.onReconnectAttempt(this.#reconnectAttempts)
   }
 
   subscription(channel: string) {
