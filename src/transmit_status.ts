@@ -13,6 +13,7 @@ export const TransmitStatus = {
   Connected: 'connected',
   Disconnected: 'disconnected',
   Reconnecting: 'reconnecting',
+  Closed: 'closed',
 } as const
 
 export type TransmitStatus = (typeof TransmitStatus)[keyof typeof TransmitStatus]

@@ -198,7 +198,7 @@ export class Transmit {
       this.#options.maxReconnectAttempts &&
       this.#reconnectAttempts >= this.#options.maxReconnectAttempts
     ) {
-      this.#eventSource!.close()
+      this.close()
 
       this.#hooks.onReconnectFailed()
 
@@ -238,5 +238,6 @@ export class Transmit {
 
   close() {
     this.#eventSource?.close()
+    this.#changeStatus(TransmitStatus.Closed)
   }
 }

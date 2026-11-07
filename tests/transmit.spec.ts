@@ -166,6 +166,76 @@ test.group('Transmit', () => {
     assert.equal(httpClient!.sentRequests.length, 2)
   })
 
+  test('should settle pending subscription create when closed before connecting', async ({
+    assert,
+  }) => {
+    let httpClient: FakeHttpClient | null = null
+
+    const transmit = new Transmit({
+      baseUrl: 'http://localhost',
+      uidGenerator: () => '1',
+      // @ts-expect-error - Mock is not 1:1 with EventSource
+      eventSourceFactory(url, options) {
+        return new FakeEventSource(url, options.withCredentials)
+      },
+      httpClientFactory(baseUrl, uid) {
+        httpClient = new FakeHttpClient({ baseUrl, uid })
+        return httpClient
+      },
+    })
+
+    const subscription = transmit.subscription('channel')
+    const pending = subscription.create()
+
+    transmit.close()
+
+    const settled = await Promise.race([
+      pending.then(() => true),
+      setTimeout(500).then(() => false),
+    ])
+
+    assert.isTrue(settled)
+    assert.isFalse(subscription.isCreated)
+    assert.lengthOf(httpClient!.sentRequests, 0)
+  })
+
+  test('should settle pending subscription create when reconnect attempts are exhausted', async ({
+    assert,
+  }) => {
+    let eventSource: FakeEventSource | null = null
+    let httpClient: FakeHttpClient | null = null
+
+    const transmit = new Transmit({
+      baseUrl: 'http://localhost',
+      uidGenerator: () => '1',
+      maxReconnectAttempts: 1,
+      // @ts-expect-error - Mock is not 1:1 with EventSource
+      eventSourceFactory(url, options) {
+        eventSource = new FakeEventSource(url, options.withCredentials)
+        return eventSource
+      },
+      httpClientFactory(baseUrl, uid) {
+        httpClient = new FakeHttpClient({ baseUrl, uid })
+        return httpClient
+      },
+    })
+
+    const subscription = transmit.subscription('channel')
+    const pending = subscription.create()
+
+    eventSource!.emit('error', new MessageEvent('error'))
+    eventSource!.emit('error', new MessageEvent('error'))
+
+    const settled = await Promise.race([
+      pending.then(() => true),
+      setTimeout(500).then(() => false),
+    ])
+
+    assert.isTrue(settled)
+    assert.isFalse(subscription.isCreated)
+    assert.lengthOf(httpClient!.sentRequests, 0)
+  })
+
   test('should remove subscription from map after delete', async ({ assert }) => {
     let eventSource: FakeEventSource | null = null
 

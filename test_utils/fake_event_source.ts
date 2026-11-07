@@ -8,10 +8,16 @@ export class FakeEventSource {
   constructor(url: string | URL, withCredentials: boolean = false) {
     this.constructorOptions = { url, withCredentials }
 
-    // Simulate the EventSource opening
+    // Simulate the EventSource opening, unless it was closed first
     setTimeout(() => {
-      this.emit('open', new MessageEvent('open'))
+      if (!this.isClosed) this.emit('open', new MessageEvent('open'))
     }, 0)
+  }
+
+  isClosed = false
+
+  close() {
+    this.isClosed = true
   }
 
   onerror(): any {

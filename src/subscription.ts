@@ -117,6 +117,11 @@ export class Subscription {
   }
 
   async forceCreate() {
+    //? A closed client never connects again, so stop waiting for it
+    if (this.#getEventSourceStatus() === TransmitStatus.Closed) {
+      return
+    }
+
     if (this.#getEventSourceStatus() !== TransmitStatus.Connected) {
       if (this.#createPending) {
         return this.#createPending
