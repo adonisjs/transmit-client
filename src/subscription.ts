@@ -8,15 +8,19 @@
  */
 
 import { SubscriptionStatus } from './subscription_status.js'
-import { TransmitStatus } from './transmit_status.js'
 import type { Hook } from './hook.js'
 import type { HttpClient } from './http_client.js'
 
 interface SubscriptionOptions {
   channel: string
   httpClient: HttpClient
-  getEventSourceStatus: () => TransmitStatus
   hooks?: Hook
+
+  /**
+   * Called by create() to ask the owner to subscribe. The owner decides
+   * when to call $subscribe() and settles the promise when it gives up.
+   */
+  onCreate: () => Promise<void>
   onDelete?: () => void
 }
 
@@ -32,6 +36,11 @@ export class Subscription {
   #hooks: Hook | undefined
 
   /**
+   * Callback to call when create() is requested.
+   */
+  readonly #onCreate: () => Promise<void>
+
+  /**
    * Callback to call when the subscription is deleted.
    */
   readonly #onDelete: (() => void) | undefined
@@ -42,19 +51,9 @@ export class Subscription {
   #channel: string
 
   /**
-   * Event source status getter.
-   */
-  #getEventSourceStatus: () => TransmitStatus
-
-  /**
    * Registered message handlers.
    */
   #handlers = new Set<(message: any) => void>()
-
-  /**
-   * Pending create retry promise to avoid stacking timeouts.
-   */
-  #createPending: Promise<void> | null = null
 
   /**
    * Current status of the subscription.
@@ -86,8 +85,8 @@ export class Subscription {
     this.#channel = options.channel
     this.#httpClient = options.httpClient
     this.#hooks = options.hooks
+    this.#onCreate = options.onCreate
     this.#onDelete = options.onDelete
-    this.#getEventSourceStatus = options.getEventSourceStatus
   }
 
   /**
@@ -104,41 +103,23 @@ export class Subscription {
     }
   }
 
+  /**
+   * Subscribes to the channel. A deleted subscription stays deleted:
+   * get a new one from `transmit.subscription()` instead.
+   */
   async create() {
-    if (this.isCreated) {
+    if (this.#status !== SubscriptionStatus.Pending) {
       return
     }
 
-    if (this.#getEventSourceStatus() !== TransmitStatus.Connected && this.#createPending) {
-      return this.#createPending
-    }
-
-    return this.forceCreate()
+    return this.#onCreate()
   }
 
-  async forceCreate() {
-    //? A closed client never connects again, so stop waiting for it
-    if (this.#getEventSourceStatus() === TransmitStatus.Closed) {
-      return
-    }
-
-    if (this.#getEventSourceStatus() !== TransmitStatus.Connected) {
-      if (this.#createPending) {
-        return this.#createPending
-      }
-
-      this.#createPending = new Promise((resolve) => {
-        setTimeout(() => {
-          this.#createPending = null
-          resolve(this.create())
-        }, 100)
-      })
-
-      return this.#createPending
-    }
-
-    this.#createPending = null
-
+  /**
+   * Sends the subscribe request. Transmit calls it once the connection
+   * is open, and again for created subscriptions after a reconnect.
+   */
+  async $subscribe() {
     const request = this.#httpClient.createRequest('/__transmit/subscribe', {
       channel: this.#channel,
     })
@@ -153,6 +134,11 @@ export class Subscription {
 
       if (!response.ok) {
         this.#hooks?.onSubscribeFailed(response)
+        return
+      }
+
+      //? A response that arrives after delete() must not revive the subscription
+      if (this.isDeleted) {
         return
       }
 

@@ -166,6 +166,148 @@ test.group('Transmit', () => {
     assert.equal(httpClient!.sentRequests.length, 2)
   })
 
+  test('should wait for the connection before subscribing', async ({ assert }) => {
+    let httpClient: FakeHttpClient | null = null
+
+    const transmit = new Transmit({
+      baseUrl: 'http://localhost',
+      uidGenerator: () => '1',
+      // @ts-expect-error - Mock is not 1:1 with EventSource
+      eventSourceFactory(url, options) {
+        return new FakeEventSource(url, options.withCredentials)
+      },
+      httpClientFactory(baseUrl, uid) {
+        httpClient = new FakeHttpClient({ baseUrl, uid })
+        return httpClient
+      },
+    })
+
+    const subscription = transmit.subscription('channel')
+    const pending = subscription.create()
+    const pendingSecond = subscription.create()
+
+    assert.lengthOf(httpClient!.sentRequests, 0)
+
+    await Promise.all([pending, pendingSecond])
+
+    assert.isTrue(subscription.isCreated)
+    assert.lengthOf(httpClient!.sentRequests, 1)
+  })
+
+  test('should reject pending create when beforeSubscribe throws', async ({ assert }) => {
+    const transmit = new Transmit({
+      baseUrl: 'http://localhost',
+      uidGenerator: () => '1',
+      // @ts-expect-error - Mock is not 1:1 with EventSource
+      eventSourceFactory(url, options) {
+        return new FakeEventSource(url, options.withCredentials)
+      },
+      httpClientFactory(baseUrl, uid) {
+        return new FakeHttpClient({ baseUrl, uid })
+      },
+      beforeSubscribe() {
+        throw new Error('Boom')
+      },
+    })
+
+    const pending = transmit.subscription('channel').create()
+
+    const outcome = await Promise.race([
+      pending.then(
+        () => 'resolved',
+        () => 'rejected'
+      ),
+      setTimeout(500).then(() => 'pending'),
+    ])
+
+    assert.equal(outcome, 'rejected')
+  })
+
+  test('should not subscribe once the client is closed during open', async ({ assert }) => {
+    function setup(beforeSubscribe?: (transmit: Transmit) => void) {
+      let eventSource: FakeEventSource | null = null
+      let httpClient: FakeHttpClient | null = null
+
+      const transmit: Transmit = new Transmit({
+        baseUrl: 'http://localhost',
+        uidGenerator: () => '1',
+        // @ts-expect-error - Mock is not 1:1 with EventSource
+        eventSourceFactory(url, options) {
+          eventSource = new FakeEventSource(url, options.withCredentials)
+          return eventSource
+        },
+        httpClientFactory(baseUrl, uid) {
+          httpClient = new FakeHttpClient({ baseUrl, uid })
+          return httpClient
+        },
+        beforeSubscribe: () => beforeSubscribe?.(transmit),
+      })
+
+      return { transmit, eventSource: eventSource!, httpClient: httpClient! }
+    }
+
+    //? Closed by a 'connected' listener
+    const listener = setup()
+    await listener.transmit.subscription('channel').create()
+    assert.lengthOf(listener.httpClient.sentRequests, 1)
+
+    listener.transmit.on('connected', () => listener.transmit.close())
+    listener.eventSource.sendOpenEvent()
+
+    assert.lengthOf(listener.httpClient.sentRequests, 1)
+
+    //? Closed by beforeSubscribe while re-subscribing the first of two channels
+    let closeOnSubscribe = false
+    const hook = setup((transmit) => closeOnSubscribe && transmit.close())
+    await hook.transmit.subscription('channel1').create()
+    await hook.transmit.subscription('channel2').create()
+    assert.lengthOf(hook.httpClient.sentRequests, 2)
+
+    closeOnSubscribe = true
+    hook.eventSource.emit('error', new MessageEvent('error'))
+    hook.eventSource.sendOpenEvent()
+
+    //? The first POST still leaves, its own hook closed the client too late
+    assert.lengthOf(hook.httpClient.sentRequests, 3)
+  })
+
+  test('should reuse the pending create when create is called from a connected listener', async ({
+    assert,
+  }) => {
+    let httpClient: FakeHttpClient | null = null
+    let subscriptionHooks = 0
+
+    const transmit = new Transmit({
+      baseUrl: 'http://localhost',
+      uidGenerator: () => '1',
+      // @ts-expect-error - Mock is not 1:1 with EventSource
+      eventSourceFactory(url, options) {
+        return new FakeEventSource(url, options.withCredentials)
+      },
+      httpClientFactory(baseUrl, uid) {
+        httpClient = new FakeHttpClient({ baseUrl, uid })
+        return httpClient
+      },
+      onSubscription() {
+        subscriptionHooks++
+      },
+    })
+
+    const subscription = transmit.subscription('channel')
+    const pending = subscription.create()
+    let pendingFromListener: Promise<void> | undefined
+
+    transmit.on('connected', () => {
+      pendingFromListener = subscription.create()
+    })
+
+    await pending
+    await pendingFromListener
+
+    assert.lengthOf(httpClient!.sentRequests, 1)
+    assert.equal(subscriptionHooks, 1)
+  })
+
   test('should settle pending subscription create when closed before connecting', async ({
     assert,
   }) => {

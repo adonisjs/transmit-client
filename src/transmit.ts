@@ -61,6 +61,16 @@ export class Transmit {
   #subscriptions = new Map<string, Subscription>()
 
   /**
+   * Subscriptions whose create() waits for the connection to open, with
+   * the promise create() returned. The open handler sends them, close()
+   * settles them.
+   */
+  #pendingCreates = new Map<
+    Subscription,
+    { promise: Promise<void>; resolve: () => void; reject: (error: unknown) => void }
+  >()
+
+  /**
    * HTTP client instance.
    */
   #httpClient: HttpClient
@@ -166,11 +176,55 @@ export class Transmit {
       this.#reconnectAttempts = 0
 
       for (const subscription of this.#subscriptions.values()) {
+        //? A 'connected' listener or a beforeSubscribe hook may have closed the client.
+        //? close() also empties #pendingCreates, which ends the loop below.
+        if (this.#status !== TransmitStatus.Connected) {
+          return
+        }
+
         if (subscription.isCreated) {
-          void subscription.forceCreate()
+          void subscription.$subscribe()
         }
       }
+
+      for (const [subscription, { resolve, reject }] of this.#pendingCreates) {
+        subscription.$subscribe().then(resolve, reject)
+      }
+
+      this.#pendingCreates.clear()
     })
+  }
+
+  /**
+   * Handles subscription.create(): subscribes now when connected,
+   * otherwise waits for the open handler or close().
+   */
+  #requestCreate(subscription: Subscription) {
+    //? Reuse the waiting request, e.g. when create() runs again in a 'connected' listener
+    const waiting = this.#pendingCreates.get(subscription)
+
+    if (waiting) {
+      return waiting.promise
+    }
+
+    if (this.#status === TransmitStatus.Connected) {
+      return subscription.$subscribe()
+    }
+
+    if (this.#status === TransmitStatus.Closed) {
+      return Promise.resolve()
+    }
+
+    let resolve!: () => void
+    let reject!: (error: unknown) => void
+    const promise = new Promise<void>((res, rej) => {
+      resolve = res
+      reject = rej
+    })
+
+    this.#pendingCreates.set(subscription, { promise, resolve, reject })
+
+    return promise
   }
 
   #onMessage(event: MessageEvent) {
@@ -212,11 +266,11 @@ export class Transmit {
       return this.#subscriptions.get(channel)!
     }
 
-    const subscription = new Subscription({
+    const subscription: Subscription = new Subscription({
       channel,
       httpClient: this.#httpClient,
       hooks: this.#hooks,
-      getEventSourceStatus: () => this.#status,
+      onCreate: () => this.#requestCreate(subscription),
       onDelete: () => this.#subscriptions.delete(channel),
     })
 
@@ -238,5 +292,12 @@ export class Transmit {
   close() {
     this.#eventSource?.close()
     this.#changeStatus(TransmitStatus.Closed)
+
+    //? A closed client never connects again, so stop waiting for it
+    for (const { resolve } of this.#pendingCreates.values()) {
+      resolve()
+    }
+
+    this.#pendingCreates.clear()
   }
 }

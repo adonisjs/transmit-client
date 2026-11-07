@@ -7,12 +7,10 @@
  * file that was distributed with this source code.
  */
 
-import { setTimeout } from 'node:timers/promises'
 import { test } from '@japa/runner'
 import { Hook } from '../src/hook.js'
 import { Subscription } from '../src/subscription.js'
 import { FakeHttpClient } from '../test_utils/fake_http_client.js'
-import { TransmitStatus } from '../src/transmit_status.js'
 
 const client = new FakeHttpClient({
   baseUrl: 'http://localhost',
@@ -21,13 +19,15 @@ const client = new FakeHttpClient({
 
 const hook = new Hook()
 
-function subscriptionFactory(statusFactory?: () => TransmitStatus) {
-  return new Subscription({
+function subscriptionFactory(httpClient: FakeHttpClient = client) {
+  const subscription: Subscription = new Subscription({
     channel: 'foo',
-    httpClient: client,
+    httpClient,
     hooks: hook,
-    getEventSourceStatus: () => statusFactory?.() ?? 'connected',
+    onCreate: () => subscription.$subscribe(),
   })
+
+  return subscription
 }
 
 test.group('Subscription', (group) => {
@@ -54,49 +54,6 @@ test.group('Subscription', (group) => {
 
     await subscription.create()
     await subscription.create()
-
-    assert.isTrue(subscription.isCreated)
-    assert.lengthOf(client.sentRequests, 1)
-  })
-
-  test('should not create a subscription when event source is not connected', async ({
-    assert,
-    cleanup,
-  }) => {
-    let status: TransmitStatus = TransmitStatus.Connecting
-    const subscription = subscriptionFactory(() => status)
-
-    const pending = subscription.create()
-
-    cleanup(async () => {
-      status = TransmitStatus.Connected
-      await pending
-    })
-
-    //? Waiting for the request to be sent
-    await setTimeout(500)
-
-    assert.isFalse(subscription.isCreated)
-    assert.lengthOf(client.sentRequests, 0)
-  })
-
-  test('should not queue multiple create retries', async ({ assert, cleanup }) => {
-    let status: TransmitStatus = TransmitStatus.Connecting
-    const subscription = subscriptionFactory(() => status)
-
-    const pending = subscription.create()
-    const pendingSecond = subscription.create()
-
-    cleanup(async () => {
-      status = TransmitStatus.Connected
-      await Promise.all([pending, pendingSecond])
-    })
-
-    await setTimeout(200)
-
-    status = TransmitStatus.Connected
-
-    await Promise.all([pending, pendingSecond])
 
     assert.isTrue(subscription.isCreated)
     assert.lengthOf(client.sentRequests, 1)
@@ -132,6 +89,46 @@ test.group('Subscription', (group) => {
     await subscription.delete()
 
     assert.lengthOf(client.sentRequests, 2)
+  })
+
+  test('should not create a subscription again once deleted', async ({ assert }) => {
+    const subscription = subscriptionFactory()
+
+    await subscription.create()
+    await subscription.delete()
+    await subscription.create()
+
+    assert.isTrue(subscription.isDeleted)
+    assert.isFalse(subscription.isCreated)
+    assert.lengthOf(client.sentRequests, 2)
+  })
+
+  test('should stay deleted when a late subscribe response arrives', async ({ assert }) => {
+    let releaseLateResponse!: () => void
+    const lateResponse = new Promise<void>((resolve) => (releaseLateResponse = resolve))
+    let calls = 0
+
+    //? Holds back the response of the second subscribe request
+    const slowClient = new (class extends FakeHttpClient {
+      async send(request: Request) {
+        if (++calls === 2) await lateResponse
+        return super.send(request)
+      }
+    })({ baseUrl: 'http://localhost', uid: '1' })
+
+    const subscription = subscriptionFactory(slowClient)
+
+    const first = subscription.create()
+    const second = subscription.create()
+
+    await first
+    await subscription.delete()
+
+    releaseLateResponse()
+    await second
+
+    assert.isTrue(subscription.isDeleted)
+    assert.isFalse(subscription.isCreated)
   })
 
   test('should not delete a subscription when not created', async ({ assert }) => {
