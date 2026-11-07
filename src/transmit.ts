@@ -10,23 +10,16 @@
 import { Subscription } from './subscription.js'
 import { HttpClient } from './http_client.js'
 import { TransmitStatus } from './transmit_status.js'
-import { Hook } from './hook.js'
+import { Hook, type HookHandlers } from './hook.js'
 import { HookEvent } from './hook_event.js'
 
-interface TransmitOptions {
+interface TransmitOptions extends Partial<HookHandlers> {
   baseUrl: string
   uidGenerator?: () => string
   eventSourceFactory?: (url: string | URL, options: { withCredentials: boolean }) => EventSource
   eventTargetFactory?: () => EventTarget | null
   httpClientFactory?: (baseUrl: string, uid: string) => HttpClient
-  beforeSubscribe?: (request: Request) => void
-  beforeUnsubscribe?: (request: Request) => void
   maxReconnectAttempts?: number
-  onReconnectAttempt?: (attempt: number) => void
-  onReconnectFailed?: () => void
-  onSubscribeFailed?: (response: Response) => void
-  onSubscription?: (channel: string) => void
-  onUnsubscription?: (channel: string) => void
 }
 
 /**
@@ -123,32 +116,11 @@ export class Transmit {
     this.#hooks = new Hook()
     this.#httpClient = this.#options.httpClientFactory(this.#options.baseUrl, this.#uid)
 
-    if (options.beforeSubscribe) {
-      this.#hooks.register(HookEvent.BeforeSubscribe, options.beforeSubscribe)
-    }
-
-    if (options.beforeUnsubscribe) {
-      this.#hooks.register(HookEvent.BeforeUnsubscribe, options.beforeUnsubscribe)
-    }
-
-    if (options.onReconnectAttempt) {
-      this.#hooks.register(HookEvent.OnReconnectAttempt, options.onReconnectAttempt)
-    }
-
-    if (options.onReconnectFailed) {
-      this.#hooks.register(HookEvent.OnReconnectFailed, options.onReconnectFailed)
-    }
-
-    if (options.onSubscribeFailed) {
-      this.#hooks.register(HookEvent.OnSubscribeFailed, options.onSubscribeFailed)
-    }
-
-    if (options.onSubscription) {
-      this.#hooks.register(HookEvent.OnSubscription, options.onSubscription)
-    }
-
-    if (options.onUnsubscription) {
-      this.#hooks.register(HookEvent.OnUnsubscription, options.onUnsubscription)
+    for (const event of Object.values(HookEvent)) {
+      const handler = options[event]
+      if (handler) {
+        this.#hooks.register(event, handler)
+      }
     }
 
     this.#connect()
@@ -251,14 +223,14 @@ export class Transmit {
     if (this.#reconnectAttempts >= this.#options.maxReconnectAttempts) {
       this.close()
 
-      this.#hooks.onReconnectFailed()
+      this.#hooks.run(HookEvent.OnReconnectFailed)
 
       return
     }
 
     this.#changeStatus(TransmitStatus.Reconnecting)
     this.#reconnectAttempts++
-    this.#hooks.onReconnectAttempt(this.#reconnectAttempts)
+    this.#hooks.run(HookEvent.OnReconnectAttempt, this.#reconnectAttempts)
   }
 
   subscription(channel: string) {

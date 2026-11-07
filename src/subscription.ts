@@ -9,6 +9,7 @@
 
 import { SubscriptionStatus } from './subscription_status.js'
 import type { Hook } from './hook.js'
+import { HookEvent } from './hook_event.js'
 import type { HttpClient } from './http_client.js'
 
 interface SubscriptionOptions {
@@ -124,7 +125,7 @@ export class Subscription {
       channel: this.#channel,
     })
 
-    this.#hooks?.beforeSubscribe(request)
+    this.#hooks?.run(HookEvent.BeforeSubscribe, request)
 
     try {
       const response = await this.#httpClient.send(request)
@@ -133,7 +134,7 @@ export class Subscription {
       void response.text()
 
       if (!response.ok) {
-        this.#hooks?.onSubscribeFailed(response)
+        this.#hooks?.run(HookEvent.OnSubscribeFailed, response)
         return
       }
 
@@ -143,7 +144,7 @@ export class Subscription {
       }
 
       this.#status = SubscriptionStatus.Created
-      this.#hooks?.onSubscription(this.#channel)
+      this.#hooks?.run(HookEvent.OnSubscription, this.#channel)
     } catch (error) {}
   }
 
@@ -156,7 +157,7 @@ export class Subscription {
       channel: this.#channel,
     })
 
-    this.#hooks?.beforeUnsubscribe(request)
+    this.#hooks?.run(HookEvent.BeforeUnsubscribe, request)
 
     try {
       const response = await this.#httpClient.send(request)
@@ -169,7 +170,7 @@ export class Subscription {
       }
 
       this.#status = SubscriptionStatus.Deleted
-      this.#hooks?.onUnsubscription(this.#channel)
+      this.#hooks?.run(HookEvent.OnUnsubscription, this.#channel)
       this.#onDelete?.()
     } catch (error) {}
   }

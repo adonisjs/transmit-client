@@ -8,93 +8,44 @@
  */
 
 import { test } from '@japa/runner'
-import { Hook } from '../src/hook.js'
+import { Hook, type HookHandlers } from '../src/hook.js'
 import { HookEvent } from '../src/hook_event.js'
 
+const argsByEvent: { [E in HookEvent]: Parameters<HookHandlers[E]> } = {
+  [HookEvent.BeforeSubscribe]: [new Request('http://localhost/subscribe')],
+  [HookEvent.BeforeUnsubscribe]: [new Request('http://localhost/unsubscribe')],
+  [HookEvent.OnReconnectAttempt]: [3],
+  [HookEvent.OnReconnectFailed]: [],
+  [HookEvent.OnSubscribeFailed]: [new Response(null, { status: 500 })],
+  [HookEvent.OnSubscription]: ['news'],
+  [HookEvent.OnUnsubscription]: ['news'],
+}
+
 test.group('Hook', () => {
-  test('should register a handler for {$self} event')
-    .with([
-      HookEvent.BeforeSubscribe,
-      HookEvent.BeforeUnsubscribe,
-      HookEvent.OnReconnectAttempt,
-      HookEvent.OnSubscribeFailed,
-      HookEvent.OnSubscription,
-      HookEvent.OnUnsubscription,
-    ])
-    .run(({ assert }, event) => {
-      assert.plan(1)
-
-      const hook = new Hook()
-
-      hook.register(event, (payload) => {
-        assert.equal(payload, 1)
-      })
-
-      // @ts-expect-error
-      hook[event](1)
-    })
-
-  test('should register multiple handlers for {$self} event')
-    .with([
-      HookEvent.BeforeSubscribe,
-      HookEvent.BeforeUnsubscribe,
-      HookEvent.OnReconnectAttempt,
-      HookEvent.OnSubscribeFailed,
-      HookEvent.OnSubscription,
-      HookEvent.OnUnsubscription,
-    ])
-    .run(({ assert }, event: HookEvent) => {
-      assert.plan(2)
-
-      const hook = new Hook()
-
-      hook.register(event, (payload) => {
-        assert.equal(payload, 1)
-      })
-
-      hook.register(event, (payload) => {
-        assert.equal(payload, 1)
-      })
-
-      // @ts-expect-error
-      hook[event](1)
-    })
-
-  test('should register a handler for {$self} event')
-    .with([HookEvent.OnReconnectFailed])
-    .run(({ assert }, event) => {
-      assert.plan(1)
-
-      const hook = new Hook()
-
-      hook.register(event, () => {
-        assert.isTrue(true)
-      })
-
-      hook[event]()
-    })
-
-  test('should register multiple handlers for {$self} event')
-    .with([HookEvent.OnReconnectFailed])
+  test('should call every handler registered for {$self} event with its arguments')
+    .with(Object.values(HookEvent))
     .run(({ assert }, event) => {
       assert.plan(2)
 
       const hook = new Hook()
+      const args = argsByEvent[event]
 
-      hook.register(event, () => {
-        assert.isTrue(true)
-      })
+      hook.register(event, (...received: unknown[]) => assert.deepEqual(received, args))
+      hook.register(event, (...received: unknown[]) => assert.deepEqual(received, args))
 
-      hook.register(event, () => {
-        assert.isTrue(true)
-      })
+      // Handlers of other events must not run.
+      for (const other of Object.values(HookEvent)) {
+        if (other !== event) {
+          hook.register(other, () => assert.fail(`${other} handler should not run`))
+        }
+      }
 
-      hook[event]()
+      hook.run(event, ...args)
     })
 
   test('should not throw error no handler are defined', () => {
     const hook = new Hook()
 
-    hook.beforeSubscribe(new Request('http://localhost'))
+    hook.run(HookEvent.BeforeSubscribe, new Request('http://localhost'))
   })
 })
